@@ -1,0 +1,23 @@
+types {
+    text/html                                        html htm shtml;
+    text/css                                         css;
+    text/xml                                         xml;
+    image/gif                                        gif;
+    image/jpeg                                       jpeg jpg;
+    application/javascript                           js mjs;
+    application/json                                 json;
+    application/octet-stream                         bin exe dll;
+    application/pdf                                  pdf;
+    application/x-shockwave-flash                    swf;
+    font/ttf                                        ttf;
+    font/woff                                       woff;
+    font/woff2                                      woff2;
+    application/vnd.ms-fontobject                    eot;
+    text/plain                                      txt;
+    image/png                                       png;
+    image/svg+xml                                   svg svgz;
+    image/x-icon                                    ico;
+    application/wasm                                wasm;
+    application/xml                                 rss atom;
+    text/cache-manifest                             appcache manifest;
+}

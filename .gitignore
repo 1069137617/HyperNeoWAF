@@ -1,0 +1,53 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+backend/web/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+build/
+
+# Test coverage
+coverage.html
+coverage.out
+*.prof
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Docker volumes (local development)
+docker-compose.override.yml
+
+# Lua bytecode
+*.luac
+
+# Go test cache
+go.work.sum
