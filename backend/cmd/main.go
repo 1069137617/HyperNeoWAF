@@ -83,6 +83,8 @@ func main() {
 	logService := service.NewLogService(database.GetDB(), redisClient)
 	ipListService := service.NewIPListService(database.GetDB(), redisClient)
 	dashboardService := service.NewDashboardService(database.GetDB())
+	publicIPLibraryService := service.NewPublicIPLibraryService(database.GetDB(), redisClient, ipListService)
+	captchaService := service.NewCaptchaService()
 
 	// 8. 初始化 API 处理器（HTTP 请求处理）
 	authHandler := api.NewAuthHandler(authService, jwtAuth)
@@ -91,6 +93,8 @@ func main() {
 	ipListHandler := api.NewIPListHandler(ipListService)
 	dashboardHandler := api.NewDashboardHandler(dashboardService, logService)
 	installHandler := api.NewInstallHandler(authService)
+	publicIPLibraryHandler := api.NewPublicIPLibraryHandler(publicIPLibraryService)
+	captchaHandler := api.NewCaptchaHandler(captchaService)
 
 	// 9. 注册健康检查端点（用于负载均衡器探活）
 	router.GET("/health", func(c *gin.Context) {
@@ -117,6 +121,14 @@ func main() {
 			install.GET("/check", installHandler.CheckInstalled)          // 检查是否已安装
 			install.POST("/check-deps", installHandler.CheckDependencies) // 检查依赖连接
 			install.POST("/do", installHandler.Install)                   // 执行安装
+		}
+
+		// 验证码接口（无需认证）
+		captcha := apiV1.Group("/captcha")
+		{
+			captcha.GET("/generate", captchaHandler.Generate) // 生成验证码
+			captcha.POST("/verify", captchaHandler.Verify)    // 验证验证码
+			captcha.GET("/check", captchaHandler.Check)       // 检查验证状态
 		}
 
 		// 受保护接口（需要 JWT 认证）
@@ -161,6 +173,12 @@ func main() {
 			dash.GET("/recent-events", dashboardHandler.GetRecentEvents) // 最近事件
 			dash.GET("/top-attacks", dashboardHandler.GetTopAttacks)     // Top 攻击
 			dash.GET("/qps", dashboardHandler.GetRealtimeQPS)            // 实时 QPS
+
+			// 公开恶意IP库管理
+			publicIP := protected.Group("/public-ip-library")
+			publicIP.GET("/status", publicIPLibraryHandler.GetStatus)      // 获取状态
+			publicIP.POST("/enabled", publicIPLibraryHandler.SetEnabled)   // 启用/禁用
+			publicIP.POST("/update", publicIPLibraryHandler.TriggerUpdate) // 手动触发更新
 		}
 	}
 
@@ -189,6 +207,9 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("正在关闭服务器...")
+
+	// 停止公开IP库定时任务
+	publicIPLibraryService.Stop()
 
 	// 15. 优雅关闭：等待 30 秒处理中的请求
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

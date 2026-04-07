@@ -8,6 +8,7 @@ import (
 	"github.com/waf-project/backend/internal/model"
 	"github.com/waf-project/backend/internal/repository"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var (
@@ -82,6 +83,35 @@ func (s *IPListService) AddIP(req *AddIPRequest, addedBy uint) (*model.IPListEnt
 	s.syncIPToRedis(&entry)
 
 	return &entry, nil
+}
+
+// AddIPFromPublicLibrary adds an IP from public IP library (without checking for duplicates)
+func (s *IPListService) AddIPFromPublicLibrary(ip string, reason string) error {
+	var existing model.IPListEntry
+	result := s.db.Where("ip = ? AND type = ? AND source = ? AND deleted_at IS NULL", ip, model.IPListTypes.Blacklist, model.IPListSources.PublicLibrary).First(&existing)
+	if result.Error == nil {
+		return ErrIPAlreadyExists
+	}
+	if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return result.Error
+	}
+
+	entry := model.IPListEntry{
+		IP:       ip,
+		Type:     model.IPListTypes.Blacklist,
+		Reason:   reason,
+		AddedBy:  0,
+		Source:   model.IPListSources.PublicLibrary,
+		IsActive: true,
+	}
+
+	result = s.db.Create(&entry)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	s.syncIPToRedis(&entry)
+	return nil
 }
 
 // ListIPs retrieves paginated IP entries with filtering by type

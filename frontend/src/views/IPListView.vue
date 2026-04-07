@@ -68,6 +68,76 @@
       </NTabs>
     </NCard>
 
+    <!-- Public IP Library Card -->
+    <NCard :bordered="false" style="margin-top: 16px;">
+      <template #header>
+        <NSpace align="center" justify="space-between" style="width: 100%;">
+          <NSpace align="center">
+            <NIcon :size="20" color="#2080f0"><CloudDownloadOutline /></NIcon>
+            <span>{{ t('ipList.publicIPLibrary.title') }}</span>
+            <NTag v-if="publicIPStatus.enabled" type="success" size="small">{{ t('ipList.publicIPLibrary.enabled') }}</NTag>
+            <NTag v-else type="default" size="small">{{ t('ipList.publicIPLibrary.disabled') }}</NTag>
+          </NSpace>
+          <NSpace>
+            <NButton
+              v-if="!publicIPStatus.enabled"
+              type="primary"
+              size="small"
+              @click="enablePublicLibrary"
+              :loading="enablingLibrary"
+            >
+              {{ t('ipList.publicIPLibrary.enable') }}
+            </NButton>
+            <NButton
+              v-else
+              type="warning"
+              size="small"
+              @click="disablePublicLibrary"
+              :loading="disablingLibrary"
+            >
+              {{ t('ipList.publicIPLibrary.disable') }}
+            </NButton>
+            <NButton
+              v-if="publicIPStatus.enabled"
+              size="small"
+              @click="triggerUpdate"
+              :loading="updatingLibrary"
+            >
+              <template #icon>
+                <NIcon><RefreshOutline /></NIcon>
+              </template>
+              {{ t('ipList.publicIPLibrary.updateNow') }}
+            </NButton>
+          </NSpace>
+        </NSpace>
+      </template>
+
+      <NDescriptions :column="3" size="small" label-placement="left">
+        <NDescriptionsItem :label="t('ipList.publicIPLibrary.ipCount')">
+          <NNumberAnimation :show="publicIPStatus.enabled" :from="0" :to="publicIPStatus.ip_count || 0">
+            {{ publicIPStatus.ip_count || 0 }}
+          </NNumberAnimation>
+        </NDescriptionsItem>
+        <NDescriptionsItem :label="t('ipList.publicIPLibrary.lastUpdate')">
+          {{ publicIPStatus.last_update_time ? new Date(publicIPStatus.last_update_time).toLocaleString() : '-' }}
+        </NDescriptionsItem>
+        <NDescriptionsItem :label="t('ipList.publicIPLibrary.source')">
+          <NText type="info">{{ publicIPStatus.attribution || t('common.loading') }}</NText>
+        </NDescriptionsItem>
+      </NDescriptions>
+
+      <NDivider v-if="publicIPStatus.update_error" size="small" />
+      <NAlert v-if="publicIPStatus.update_error" type="error" :title="t('common.error')">
+        {{ publicIPStatus.update_error }}
+      </NAlert>
+
+      <template #footer v-if="publicIPStatus.enabled">
+        <NText depth="3" style="font-size: 12px;">
+          * {{ t('ipList.publicIPLibrary.autoUpdateNote') }}
+        </NText>
+      </template>
+    </NCard>
+
     <!-- Add/Edit Modal -->
     <NModal
       v-model:show="addModal"
@@ -171,6 +241,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, h } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   NCard,
   NSpace,
@@ -189,6 +260,11 @@ import {
   NPopconfirm,
   NTag,
   NText,
+  NDescriptions,
+  NDescriptionsItem,
+  NAlert,
+  NDivider,
+  NNumberAnimation,
   useMessage,
   type FormInst,
   type DataTableColumns,
@@ -200,6 +276,8 @@ import {
   CloseCircleOutline,
   CheckmarkCircleOutline,
   TrashOutline,
+  CloudDownloadOutline,
+  RefreshOutline,
 } from '@vicons/ionicons5'
 import request from '@/api/request'
 
@@ -215,6 +293,7 @@ interface IPEntry {
 }
 
 const message = useMessage()
+const { t } = useI18n()
 
 const activeTab = ref('blacklist')
 const loading = ref(false)
@@ -244,6 +323,66 @@ const ipFormData = reactive({
 const ipFormRules = {
   type: { required: true, message: 'Please select list type', trigger: 'change' },
   ip: { required: true, message: 'IP address is required', trigger: 'blur' },
+}
+
+const publicIPStatus = reactive({
+  enabled: false,
+  last_update_time: null as string | null,
+  ip_count: 0,
+  update_error: '',
+  attribution: '',
+})
+
+const enablingLibrary = ref(false)
+const disablingLibrary = ref(false)
+const updatingLibrary = ref(false)
+
+async function fetchPublicIPStatus() {
+  try {
+    const res = await request.get('/public-ip-library/status')
+    Object.assign(publicIPStatus, res.data)
+  } catch (error) {
+    console.error('Failed to fetch public IP library status:', error)
+  }
+}
+
+async function enablePublicLibrary() {
+  enablingLibrary.value = true
+  try {
+    await request.post('/public-ip-library/enabled', { enabled: true })
+    message.success('Public IP library enabled successfully')
+    await fetchPublicIPStatus()
+  } catch (error: any) {
+    message.error(error.response?.data?.message || 'Failed to enable public IP library')
+  } finally {
+    enablingLibrary.value = false
+  }
+}
+
+async function disablePublicLibrary() {
+  disablingLibrary.value = true
+  try {
+    await request.post('/public-ip-library/enabled', { enabled: false })
+    message.success('Public IP library disabled successfully')
+    await fetchPublicIPStatus()
+  } catch (error: any) {
+    message.error(error.response?.data?.message || 'Failed to disable public IP library')
+  } finally {
+    disablingLibrary.value = false
+  }
+}
+
+async function triggerUpdate() {
+  updatingLibrary.value = true
+  try {
+    await request.post('/public-ip-library/update')
+    message.success('Update triggered successfully')
+    await fetchPublicIPStatus()
+  } catch (error: any) {
+    message.error(error.response?.data?.message || 'Failed to trigger update')
+  } finally {
+    updatingLibrary.value = false
+  }
 }
 
 // Blacklist columns
@@ -419,6 +558,7 @@ async function syncToRedis() {
 
 onMounted(() => {
   fetchData()
+  fetchPublicIPStatus()
 })
 </script>
 

@@ -33,15 +33,17 @@ var IPListTypes = struct {
 }
 
 // IPListSources - 条目来源常量
-// manual: 手动添加; auto_block: 自动封禁; api: API 添加
+// manual: 手动添加; auto_block: 自动封禁; api: API 添加; public_library: 公开IP库
 var IPListSources = struct {
-	Manual    string
-	AutoBlock string
-	API       string
+	Manual         string
+	AutoBlock      string
+	API            string
+	PublicLibrary  string
 }{
-	Manual:    "manual",
-	AutoBlock: "auto_block",
-	API:       "api",
+	Manual:         "manual",
+	AutoBlock:      "auto_block",
+	API:            "api",
+	PublicLibrary:  "public_library",
 }
 
 // TableName - 指定 IPListEntry 模型对应的数据库表名
